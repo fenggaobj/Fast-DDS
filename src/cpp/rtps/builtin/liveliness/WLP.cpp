@@ -111,6 +111,7 @@ WLP::WLP(
         p->mp_participantImpl->getRTPSParticipantAttributes().allocation.locators.max_unicast_locators,
         p->mp_participantImpl->getRTPSParticipantAttributes().allocation.locators.max_multicast_locators,
         p->mp_participantImpl->getRTPSParticipantAttributes().allocation.data_limits)
+, mp_mutex(new std::recursive_mutex())
 {
     automatic_instance_handle_ = p->mp_participantImpl->getGuid();
     memset(&automatic_instance_handle_.value[12], 0, 3);
@@ -150,6 +151,7 @@ WLP::~WLP()
 
     delete pub_liveliness_manager_;
     delete sub_liveliness_manager_;
+    delete mp_mutex;
 }
 
 bool WLP::initWL(
@@ -573,7 +575,7 @@ bool WLP::add_local_writer(
         RTPSWriter* W,
         const WriterQos& wqos)
 {
-    std::lock_guard<std::recursive_mutex> guard(*mp_builtinProtocols->mp_PDP->getMutex());
+    std::lock_guard<std::recursive_mutex> guard(*(this->mp_mutex));
     logInfo(RTPS_LIVELINESS, W->getGuid().entityId << " to Liveliness Protocol");
 
     double wAnnouncementPeriodMilliSec(TimeConv::Duration_t2MilliSecondsDouble(wqos.m_liveliness.announcement_period));
@@ -661,7 +663,7 @@ typedef std::vector<RTPSWriter*>::iterator t_WIT;
 bool WLP::remove_local_writer(
         RTPSWriter* W)
 {
-    std::lock_guard<std::recursive_mutex> guard(*mp_builtinProtocols->mp_PDP->getMutex());
+    std::lock_guard<std::recursive_mutex> guard(*(this->mp_mutex));
 
     logInfo(RTPS_LIVELINESS, W->getGuid().entityId << " from Liveliness Protocol");
 
@@ -775,7 +777,7 @@ bool WLP::add_local_reader(
         RTPSReader* reader,
         const ReaderQos& rqos)
 {
-    std::lock_guard<std::recursive_mutex> guard(*mp_builtinProtocols->mp_PDP->getMutex());
+    std::lock_guard<std::recursive_mutex> guard(*(this->mp_mutex));
 
     if (rqos.m_liveliness.kind == AUTOMATIC_LIVELINESS_QOS)
     {
@@ -806,7 +808,7 @@ bool WLP::remove_local_reader(
 
 bool WLP::automatic_liveliness_assertion()
 {
-    std::lock_guard<std::recursive_mutex> guard(*mp_builtinProtocols->mp_PDP->getMutex());
+    std::lock_guard<std::recursive_mutex> guard(*(this->mp_mutex));
 
     if (0 < automatic_writers_.size())
     {
@@ -818,7 +820,7 @@ bool WLP::automatic_liveliness_assertion()
 
 bool WLP::participant_liveliness_assertion()
 {
-    std::lock_guard<std::recursive_mutex> guard(*mp_builtinProtocols->mp_PDP->getMutex());
+    std::lock_guard<std::recursive_mutex> guard(*(this->mp_mutex));
 
     if (0 < manual_by_participant_writers_.size())
     {
