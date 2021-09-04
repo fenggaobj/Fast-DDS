@@ -655,6 +655,8 @@ bool StatefulWriter::intraprocess_delivery(
     RTPSReader* reader = reader_proxy->local_reader();
     if (reader)
     {
+        // get the lock immediately if reader is not null, reduce the race of deleting the reader
+	std::unique_lock<RecursiveTimedMutex> lock(reader->getMutex());
         if (change->write_params.related_sample_identity() != SampleIdentity::unknown())
         {
             change->write_params.sample_identity(change->write_params.related_sample_identity());

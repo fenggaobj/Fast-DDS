@@ -1011,9 +1011,7 @@ bool RTPSParticipantImpl::createReader(
 RTPSReader* RTPSParticipantImpl::find_local_reader(
         const GUID_t& reader_guid)
 {
-    // As this is only called from RTPSDomainImpl::find_local_reader, and it has
-    // the domain mutex taken, there is no need to take the participant mutex
-    // std::lock_guard<std::recursive_mutex> guard(*mp_mutex);
+    std::lock_guard<std::recursive_mutex> guard(*mp_mutex);
 
     for (auto reader : m_allReaderList)
     {
@@ -1029,9 +1027,7 @@ RTPSReader* RTPSParticipantImpl::find_local_reader(
 RTPSWriter* RTPSParticipantImpl::find_local_writer(
         const GUID_t& writer_guid)
 {
-    // As this is only called from RTPSDomainImpl::find_local_reader, and it has
-    // the domain mutex taken, there is no need to take the participant mutex
-    // std::lock_guard<std::recursive_mutex> guard(*mp_mutex);
+    std::lock_guard<std::recursive_mutex> guard(*mp_mutex);
 
     for (auto writer : m_allWriterList)
     {
@@ -1444,7 +1440,12 @@ bool RTPSParticipantImpl::deleteUserEndpoint(
 #endif // if HAVE_SECURITY
         }
     }
-    //	std::lock_guard<std::recursive_mutex> guardEndpoint(*p_endpoint->getMutex());
+    
+    {
+        // get the endpoint lock, if got successfully, release the lock and delete it
+        // it can not fix the race issue completely, but reduce the probability of the race
+        std::unique_lock<RecursiveTimedMutex> lock(p_endpoint->getMutex());
+    }
     delete(p_endpoint);
     return true;
 }
